@@ -30,8 +30,8 @@ export let options = {
                 { target: 300, duration: '500m'},
                 { target: 200, duration: '2h' },
             ],
-            exec: 'readHomeTimeline', // 指定执行readHomeTimeline
-            startTime: '0s', // **从第6分钟开始** (发帖阶段5分钟+1分钟安全留空)
+            exec: 'readHomeTimeline', 
+            startTime: '0s', 
             gracefulStop: '5m', // 可选：平滑停止
            // duration: '1h',      // 设置持续时间为1小时
         },
@@ -52,10 +52,10 @@ export let options = {
                 { target: 100, duration: '4h' },
                 { target: 500, duration: '10h' },
             ],
-            exec: 'composePost', // 指定执行composePost
-            startTime: '2880m', // 从第0秒开始
-            gracefulStop: '5m', // 可选：平滑停止
-            //duration: '2h',      // 设置持续时间为1小时
+            exec: 'composePost', 
+            startTime: '2880m', 
+            gracefulStop: '5m',
+            //duration: '2h',      /
         },
     },
     thresholds: {
