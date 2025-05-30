@@ -8,7 +8,14 @@ For GAIA, please refer to https://github.com/CloudWise-OpenSource/GAIA-DataSet
 For SN in our paper, please refer to 
 
 # Details for SN
-There are three folders in SN: "data_in_paper" is the dataset that this paper used; Similar to "data_in_paper" , "Additional_sample" is an additional dataset provided for readersis; "toy" is a small dataset, which can be used for toy experiment.
+There are three folders in SN: 
+
+"data_in_paper" is the dataset that this paper used; 
+
+Similar to "data_in_paper" , "Additional_sample" is an additional dataset provided for readersis; 
+
+"toy" is a small dataset, which can be used for toy experiment.
+
 The json files in the data warehouse are the raw data collected by using tools, i.e.., Prometheus and k6, and the csv files are extracted from json files. 
 Metrics are collected at intervals of 10 seconds. Therefore, RPS data can perform average aggregation at intervals of 10 seconds as guiding condition data. We have provided the specific number of requests per second. Readers can handle and generate other conditional data by themselves. The failue injection tool used is ChaosBlade. And the main type of failue injected is cpu failure, using "blade create k8s container-cpu load --cpu-percent xx --container-ids xx --names xx --kubeconfig xx --namespace xx". The last column of the table that combines RPS and metrics is the failure label.
 
