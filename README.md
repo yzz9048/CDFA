@@ -1,14 +1,14 @@
 # CDFA
 
-#For now, only the core code is displayed and the complete code is coming soon.
+# For now, only the core code is displayed and the complete code is coming soon.
 
 We have provided the backbone of CDFA (backbone.py) and the diffusion process (gaussian_diffusion.py) here.
 
-#Metric prediction results
+# Metric prediction results
 
-We have shown the metric prediction resuts of all methods on all datasets, and they are named by "{model_name}-{dataset_name}" primarily.
+We have shown the metric prediction resuts of all methods on all datasets, and they are named by "{model_name}-{dataset_name}" primarily. An overall display is provided in the PDF file.
 
-#Datasets
+# Datasets
 
 For AIops18, please refer to https://github.com/BEbillionaireUSD/Maat
 
