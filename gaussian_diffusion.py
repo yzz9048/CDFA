@@ -117,7 +117,6 @@ class Diffusion_TS(nn.Module):
         #self.detecter_criterion = nn.CrossEntropyLoss()
         self.log_sigma1 = nn.Parameter(torch.tensor(0.0))  # for regression
         self.log_sigma2 = nn.Parameter(torch.tensor(0.0))  # for classification
-        self.log_sigma3 = nn.Parameter(torch.tensor(0.0))  # for causal
 
         if beta_schedule == 'linear':
             betas = linear_beta_schedule(timesteps)
@@ -272,8 +271,6 @@ class Diffusion_TS(nn.Module):
         sigma2_sq = torch.exp(self.log_sigma2) ** 2 
         loss = (1 / sigma1_sq) * train_loss + (1 / sigma2_sq) * judge_loss + self.log_sigma1 + self.log_sigma2 
 
-        #print(f"loss_reg: {train_loss.item():.4f}, loss_cls: {judge_loss.item():.4f}, loss_cau: {loss_causal.item():.4f}")
-        #print(f"log_sigma1: {self.log_sigma1.item():.4f}, log_sigma2: {self.log_sigma2.item():.4f}, log_sigma3: {self.log_sigma3.item():.4f}")
         return loss, loss_causal
 
     def forward(self, data, labels, DeltaT, clip, granger,**kwargs): 
@@ -324,19 +321,15 @@ class Diffusion_TS(nn.Module):
         clip_denoised=True,
         model_kwargs=None
     ):
-        s = datetime.now()
-        print("start at :",s)
         batched_times = torch.full((x.shape[0],), t, device=x.device, dtype=torch.long)
         model_mean, _, model_log_variance, _, judges, loss_causal= \
             self.p_mean_variance(granger=granger, x=x, history=history, t=batched_times, clip=clip, clip_denoised=clip_denoised)
         noise = torch.randn_like(x) if t > 0 else 0.  # no noise if t == 0
         sigma = (0.5 * model_log_variance).exp()
         pred_img = model_mean + sigma * noise
-        e = datetime.now()
-        print("end at :",e)
         
-
         return pred_img, judges, loss_causal
 
 if __name__ == '__main__':
     pass
+
