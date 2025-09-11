@@ -43,22 +43,6 @@ class TrendBlock(nn.Module):
         trend_vals = trend_vals.transpose(1, 2)
         return trend_vals
     
-
-class MovingBlock(nn.Module):
-    """
-    Model trend of time series using the moving average.
-    """
-    def __init__(self, out_dim):
-        super(MovingBlock, self).__init__()
-        size = max(min(int(out_dim / 4), 24), 4)
-        self.decomp = series_decomp(size)
-
-    def forward(self, input):
-        b, c, h = input.shape
-        x, trend_vals = self.decomp(input)
-        return x, trend_vals
-
-
 class FourierLayer(nn.Module):
     """
     Model seasonality of time series using the inverse DFT.
@@ -308,41 +292,7 @@ class FullyConnected(nn.Module):
         x = x.view(B * W, F)
         x = self.feature_net(x)  # [B*W, hidden]
         x = x.view(B, W, -1)     # reshape back to [B, W, hidden]
-
-        # 聚合窗口（例如平均池化）
         x = x.mean(dim=1)        # [B, hidden]
-
-        return self.classifier(x)  # [B, 2]
-
-class AttentionFC(nn.Module):
-    def __init__(self, in_feat, out_dim, linear_sizes):
-        super(AttentionFC, self).__init__()
-
-        layers = []
-        for i, hidden in enumerate(linear_sizes):
-            prev = in_feat if i == 0 else linear_sizes[i - 1]
-            layers += [nn.Linear(prev, hidden), nn.ReLU()]
-        self.feature_net = nn.Sequential(*layers)
-
-        self.hidden_dim = linear_sizes[-1]
-
-
-        self.attn_fc = nn.Linear(self.hidden_dim, 1)
-
-
-        self.classifier = nn.Linear(self.hidden_dim, out_dim)
-
-    def forward(self, x: torch.Tensor):  # x: [B, W, F]
-        B, W, F = x.shape
-
-        x = x.view(B * W, F)
-        x = self.feature_net(x)  # [B*W, hidden]
-        x = x.view(B, W, -1)     # [B, W, hidden]
-
-        attn_weights = self.attn_fc(x)  # [B, W, 1]
-        attn_weights = F.softmax(attn_weights, dim=1)  # [B, W, 1]
-
-        x = (x * attn_weights).sum(dim=1)  # [B, hidden]
 
         return self.classifier(x)  # [B, 2]
 
@@ -385,7 +335,6 @@ class DecoderBlock(nn.Module):
         act = nn.GELU() if activate == 'GELU' else GELU2()
         self.n_shape = n_shape
         self.trend = TrendBlock(n_channel, n_shape, n_embd, n_embd, act=act)
-        # self.decomp = MovingBlock(n_channel)
         self.seasonal = FourierLayer(d_model=n_embd)
         # self.seasonal = SeasonBlock(n_channel, n_channel)
 
@@ -598,11 +547,8 @@ class Transformer(nn.Module):
         self.generator = AdaptGenerator(self, 200, n_shape, n_embd, nn.Sigmoid, True, True, False, 32) 
 
     def forward(self, input, history, t, clip, granger,  padding_masks=None, return_res=False):
-        start2 = datetime.now()
-        print("causal start at :",start2)
-
         rps_raw_data = history[:,:,0]
-        rps_raw_grad = torch.diff(rps_raw_data, dim=0) # 由于rps采样间隔是 1s ，所以一阶梯度即一阶差分
+        rps_raw_grad = torch.diff(rps_raw_data, dim=0)
         rps_raw_grad = torch.cat([torch.zeros(1, rps_raw_data.shape[1]).cuda(), rps_raw_grad], dim=0)
         rps_data = torch.cat([rps_raw_data.unsqueeze(-1),rps_raw_grad.unsqueeze(-1)],dim=-1) # 【batch_size, window-DeltaT,2】
 
@@ -611,13 +557,8 @@ class Transformer(nn.Module):
         causal_scores = granger.instancewise_scores(rps_data[:,:,0].unsqueeze(-1), history[:,:-1,1:])  # (B, F)
         mask = causal_scores > 0.1  
         causal_scores = causal_scores * mask
-        
         cond_data = 9/10 * (causal_scores.unsqueeze(1)*rps_data[:,:,0].unsqueeze(-1) + (1-causal_scores.unsqueeze(1))*history[:,:,1:]) \
             + 1/10 * (causal_scores.unsqueeze(1)*rps_data[:,:,1].unsqueeze(-1) + (1-causal_scores.unsqueeze(1))*history[:,:,1:])
-
-        end2 = datetime.now()
-        print("causal end at :",end2)
-
 
         input = torch.cat([torch.zeros(input.shape[0], input.shape[1], 2).cuda(),input], dim=-1)
         emb = self.emb(input) 
@@ -625,11 +566,7 @@ class Transformer(nn.Module):
         cond_feature = self.emb_cond(cond_data)
         inp_enc = self.pos_enc(cond_feature)
         enc_cond = self.encoder(inp_enc, t, padding_masks=padding_masks)
-        
         output, trend, season = self.decoder(inp_dec, t, enc_cond, padding_masks=padding_masks)
-
-        end3 = datetime.now()
-        print("condition end at :",end3)
         
         emb2 = self.emb2(cond_data) 
         inp_dec2 = self.pos_dec2(emb2)
@@ -645,9 +582,6 @@ class Transformer(nn.Module):
         outForJudge = self.emb_judge(trend+season+output)
         judge = self.detecter(torch.cat([self.li(enc_cond.transpose(1, 2)).transpose(1, 2),outForJudge],dim=1))
 
-        end4 = datetime.now()
-        print("judge end at :",end4)
-
         return self.dropout_m(self.combine_t((trend+output).transpose(1, 2)).transpose(1, 2)), \
             self.dropout_s(self.combine_s(season.transpose(1, 2)).transpose(1, 2)), judge, loss_causal
 
@@ -655,4 +589,5 @@ class Transformer(nn.Module):
         batch_size = x.size()[:-1]
         x = x.reshape(self.scale2.shape[0], -1, x.shape[-1])
         return (x * self.scale2).view(*batch_size, x.shape[-1])
+
     
